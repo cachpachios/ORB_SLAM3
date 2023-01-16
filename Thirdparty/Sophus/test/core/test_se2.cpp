@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <sophus/se2.hpp>
-#include <unsupported/Eigen/MatrixFunctions>
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 #include "tests.hpp"
 
 // Explicit instantiate all class templates so that all member methods

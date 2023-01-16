@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <unsupported/Eigen/MatrixFunctions>
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 
 #include <sophus/sim2.hpp>
 #include "tests.hpp"

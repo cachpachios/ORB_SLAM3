@@ -3,8 +3,8 @@
 
 #include <array>
 
-#include <Eigen/StdVector>
-#include <unsupported/Eigen/MatrixFunctions>
+#include <eigen3/Eigen/StdVector>
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 
 #include <sophus/average.hpp>
 #include <sophus/interpolate.hpp>

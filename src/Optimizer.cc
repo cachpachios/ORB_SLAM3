@@ -22,9 +22,9 @@
 
 #include <complex>
 
-#include <Eigen/StdVector>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/MatrixFunctions>
+#include <eigen3/Eigen/StdVector>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 
 #include "Thirdparty/g2o/g2o/core/sparse_block_matrix.h"
 #include "Thirdparty/g2o/g2o/core/block_solver.h"
