@@ -40,15 +40,18 @@ double ttrack_tot = 0;
 int main(int argc, char *argv[])
 {
 
-    if(argc < 5)
+    if(argc < 7)
     {
-        cerr << endl << "Usage: ./mono_inertial_euroc path_to_vocabulary path_to_settings path_to_sequence_folder_1 path_to_times_file_1 (path_to_image_folder_2 path_to_times_file_2 ... path_to_image_folder_N path_to_times_file_N) " << endl;
+        cerr << endl << "Usage: ./mono_inertial_euroc use_gui cam_data_name path_to_vocabulary path_to_settings path_to_sequence_folder_1 path_to_times_file_1 (path_to_image_folder_2 path_to_times_file_2 ... path_to_image_folder_N path_to_times_file_N) " << endl;
         return 1;
     }
 
-    const int num_seq = (argc-3)/2;
+    bool use_gui = (atoi(argv[1]) != 0);
+    cout << "use_gui = " << use_gui << endl;
+
+    const int num_seq = (argc-5)/2;
     cout << "num_seq = " << num_seq << endl;
-    bool bFileName= (((argc-3) % 2) == 1);
+    bool bFileName= (((argc-5) % 2) == 1);
     string file_name;
     if (bFileName)
     {
@@ -79,10 +82,10 @@ int main(int argc, char *argv[])
     {
         cout << "Loading images for sequence " << seq << "...";
 
-        string pathSeq(argv[(2*seq) + 3]);
-        string pathTimeStamps(argv[(2*seq) + 4]);
+        string pathSeq(argv[(2*seq) + 5]);
+        string pathTimeStamps(argv[(2*seq) + 6]);
 
-        string pathCam0 = pathSeq + "/mav0/cam0/data";
+        string pathCam0 = pathSeq + "/mav0/" + argv[2] + "/data";
         string pathImu = pathSeq + "/mav0/imu0/data.csv";
 
         LoadImages(pathCam0, pathTimeStamps, vstrImageFilenames[seq], vTimestampsCam[seq]);
@@ -116,8 +119,10 @@ int main(int argc, char *argv[])
 
     cout.precision(17);
 
+    
+
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_MONOCULAR, true);
+    ORB_SLAM3::System SLAM(argv[3],argv[4],ORB_SLAM3::System::IMU_MONOCULAR, true);
     float imageScale = SLAM.GetImageScale();
 
     double t_resize = 0.f;
