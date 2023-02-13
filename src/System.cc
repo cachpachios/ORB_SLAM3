@@ -418,7 +418,7 @@ Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, 
         imToFeed = resizedIm;
     }
 
-    // Check mode change
+    // Check mode change. (Changing to/from localization mode only).
     {
         unique_lock<mutex> lock(mMutexMode);
         if(mbActivateLocalizationMode)
