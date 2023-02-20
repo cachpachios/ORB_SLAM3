@@ -825,7 +825,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
     int nInitialCorrespondences=0;
 
-    // Set Frame vertex
+    // Set Frame (pose) vertex
     g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
     Sophus::SE3<float> Tcw = pFrame->GetPose();
     vSE3->setEstimate(g2o::SE3Quat(Tcw.unit_quaternion().cast<double>(),Tcw.translation().cast<double>()));

@@ -1083,6 +1083,7 @@ namespace ORB_SLAM3
             computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
     }
 
+    // When called as a function. It will compute the ORB features and descriptors on an image
     int ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                                   OutputArray _descriptors, std::vector<int> &vLappingArea)
     {

@@ -352,6 +352,8 @@ public:
 
     Eigen::Vector3f UnprojectStereoFishEye(const int &i);
 
+    void RSCompensation(double rsRowTime); // Rectify for rolling shutter cameras
+
     cv::Mat imgLeft, imgRight;
 
     void PrintPointDistribution(){

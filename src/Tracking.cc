@@ -583,6 +583,7 @@ void Tracking::newParameterLoader(Settings *settings) {
 
     mMinFrames = 0;
     mMaxFrames = settings->fps();
+    mRsRowTime = settings->rsRowTime();
     mbRGB = settings->rgb();
 
     //ORB parameters
@@ -2863,15 +2864,19 @@ bool Tracking::TrackWithMotionModel()
     {
         // Predict state with IMU if it is initialized and it doesnt need reset
         PredictStateIMU();
+        mCurrentFrame.RSCompensation(mRsRowTime);
+        cout << "TrackWithMotionModel: Predicted state with IMU" << endl;
         return true;
     }
     else
     {
         mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
+        mCurrentFrame.RSCompensation(mRsRowTime);
     }
 
 
 
+    cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 

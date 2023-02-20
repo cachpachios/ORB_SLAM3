@@ -41,7 +41,7 @@ namespace ORB_SLAM3
     }
 
     int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th, const bool bFarPoints, const float thFarPoints)
-    {
+    { // Used in loop-closure
         int nmatches=0, left = 0, right = 0;
 
         const bool bFactor = th!=1.0;
@@ -426,7 +426,7 @@ namespace ORB_SLAM3
 
     int ORBmatcher::SearchByProjection(KeyFrame* pKF, Sophus::Sim3f &Scw, const vector<MapPoint*> &vpPoints,
                                        vector<MapPoint*> &vpMatched, int th, float ratioHamming)
-    {
+    { // Used in LoopClosure
         // Get Calibration Parameters for later projection
         const float &fx = pKF->fx;
         const float &fy = pKF->fy;
@@ -1674,7 +1674,7 @@ namespace ORB_SLAM3
     }
 
     int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, const bool bMono)
-    {
+    { // Since Frame => VO part of ORBSLAM
         int nmatches = 0;
 
         // Rotation Histogram (to check rotation consistency)

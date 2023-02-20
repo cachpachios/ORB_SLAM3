@@ -304,6 +304,9 @@ protected:
     int mnFirstImuFrameId;
     int mnFramesToResetIMU;
 
+    // RSRowTime. Time between rows in the image. Used for RS compensation
+    double mRsRowTime;
+
     // Threshold close/far points
     // Points seen as close by the stereo/RGBD sensor are considered reliable
     // and inserted from just one frame. Far points requiere a match in two keyframes.

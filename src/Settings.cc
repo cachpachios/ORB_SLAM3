@@ -406,9 +406,13 @@ namespace ORB_SLAM3 {
                 }
             }
         }
-
         fps_ = readParameter<int>(fSettings,"Camera.fps",found);
         bRGB_ = (bool) readParameter<int>(fSettings,"Camera.RGB",found);
+
+        rsRowTime_ = readParameter<double>(fSettings,"Camera.rsRowTime",found, false);
+        if (!found) {
+            rsRowTime_ = 0; // GS camera.
+        }
     }
 
     void Settings::readIMU(cv::FileStorage &fSettings) {
@@ -600,6 +604,7 @@ namespace ORB_SLAM3 {
             }
         }
 
+        output << "\t-Camera row time: " << settings.rsRowTime_ << endl;
         output << "\t-Sequence FPS: " << settings.fps_ << endl;
 
         //Stereo stuff
