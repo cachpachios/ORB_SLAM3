@@ -23,6 +23,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include<mutex>
+#include <opencv2/imgproc.hpp>
 
 namespace ORB_SLAM3
 {
@@ -39,7 +40,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
     cv::Mat im;
     vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
     vector<int> vMatches; // Initialization: correspondeces with reference keypoints
-    vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
+    vector<cv::KeyPoint> vCurrentKeys, vCurrentKeysRS; // KeyPoints in current frame
     vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
     vector<pair<cv::Point2f, cv::Point2f> > vTracks;
     int state; // Tracking state
@@ -96,6 +97,11 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
         else if(mState==Tracking::LOST)
         {
             vCurrentKeys = mvCurrentKeys;
+        }
+
+        if(hasRSKeys)
+        {
+            vCurrentKeysRS = mvCurrentKeysRS;
         }
     }
 
@@ -190,6 +196,11 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
                     cv::rectangle(im,pt1,pt2,odometryColor);
                     cv::circle(im,point,2,odometryColor,-1);
                     mnTrackedVO++;
+                }
+
+                if(hasRSKeys)
+                {
+                    cv::line(im, point, vCurrentKeysRS[i].pt, cv::Scalar(0,0,255));
                 }
             }
         }
@@ -372,6 +383,11 @@ void FrameDrawer::Update(Tracking *pTracker)
     unique_lock<mutex> lock(mMutex);
     pTracker->mImGray.copyTo(mIm);
     mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
+    
+    hasRSKeys = pTracker->mCurrentFrame.mbRSCompensated;
+    if(hasRSKeys)
+        mvCurrentKeysRS = pTracker->mCurrentFrame.mvKeys_rs;
+
     mThDepth = pTracker->mCurrentFrame.mThDepth;
     mvCurrentDepth = pTracker->mCurrentFrame.mvDepth;
 

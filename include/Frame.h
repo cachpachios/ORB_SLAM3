@@ -20,6 +20,7 @@
 #ifndef FRAME_H
 #define FRAME_H
 
+#include <opencv2/core/types.hpp>
 #include<vector>
 
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
@@ -227,6 +228,10 @@ public:
     // In the RGB-D case, RGB images can be distorted.
     std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
     std::vector<cv::KeyPoint> mvKeysUn;
+
+
+    bool mbRSCompensated = false;
+    std::vector<cv::KeyPoint> mvKeys_rs; // Not compensated for rs-distortion, used for visualization
 
     // Corresponding stereo coordinate and depth for each keypoint.
     std::vector<MapPoint*> mvpMapPoints;

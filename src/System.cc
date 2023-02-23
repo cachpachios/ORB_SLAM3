@@ -103,6 +103,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     if(!node.empty())
     {
         activeLC = static_cast<int>(fsSettings["loopClosing"]) != 0;
+        cout << "Loop Closing is set to: " << activeLC << endl;
     }
 
     mStrVocabularyFilePath = strVocFile;

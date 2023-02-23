@@ -59,7 +59,8 @@ protected:
     // Info of the frame to be drawn
     cv::Mat mIm, mImRight;
     int N;
-    vector<cv::KeyPoint> mvCurrentKeys,mvCurrentKeysRight;
+    vector<cv::KeyPoint> mvCurrentKeys,mvCurrentKeysRight, mvCurrentKeysRS;
+    bool hasRSKeys = false;
     vector<bool> mvbMap, mvbVO;
     bool mbOnlyTracking;
     int mnTracked, mnTrackedVO;

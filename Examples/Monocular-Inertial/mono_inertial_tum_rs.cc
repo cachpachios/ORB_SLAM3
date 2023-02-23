@@ -82,10 +82,10 @@ int main(int argc, char *argv[])
     {
         cout << "Loading images for sequence " << seq << "...";
 
-        string pathSeq(argv[(2*seq) + 5]);
-        string pathTimeStamps(argv[(2*seq) + 6]);
+        string pathSeq(argv[(2*seq) + 6]);
+        string pathTimeStamps(argv[(2*seq) + 7]);
 
-        string pathCam0 = pathSeq + "/mav0/" + argv[2] + "/data";
+        string pathCam0 = pathSeq + "/mav0/" + argv[3] + "/data";
         string pathImu = pathSeq + "/mav0/imu0/data.csv";
 
         LoadImages(pathCam0, pathTimeStamps, vstrImageFilenames[seq], vTimestampsCam[seq]);
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
     
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM3::System SLAM(argv[3],argv[4],ORB_SLAM3::System::IMU_MONOCULAR, use_gui);
+    ORB_SLAM3::System SLAM(argv[4],argv[5],ORB_SLAM3::System::IMU_MONOCULAR, use_gui);
     float imageScale = SLAM.GetImageScale();
 
     double t_resize = 0.f;

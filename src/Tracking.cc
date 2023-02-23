@@ -1585,9 +1585,9 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
     if (mSensor == System::MONOCULAR)
     {
         if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET ||(lastID - initID) < mMaxFrames)
-            mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
+            mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,&mLastFrame);
         else
-            mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
+            mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,&mLastFrame);
     }
     else if(mSensor == System::IMU_MONOCULAR)
     {
@@ -2865,7 +2865,6 @@ bool Tracking::TrackWithMotionModel()
         // Predict state with IMU if it is initialized and it doesnt need reset
         PredictStateIMU();
         mCurrentFrame.RSCompensation(mRsRowTime);
-        cout << "TrackWithMotionModel: Predicted state with IMU" << endl;
         return true;
     }
     else

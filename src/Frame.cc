@@ -393,10 +393,16 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     if (rsRowTime == 0)
         return; // No need to do anything if there is no row time
 
+    if (!mpPrevFrame)
+        return; // Cant do anything if there is no previous frame
+
+    mbRSCompensated = true;
+    mvKeys_rs = mvKeys; // Copy the original keypoints
+
     auto qCurr = GetPose().so3().unit_quaternion();
     auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
 
-
+    mvKeys_rs.resize(mvKeys.size());
     for(int i=0;i<N;i++) // For each detected keypoint
     {
         auto kp = mvKeys[i].pt;
@@ -410,9 +416,12 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
         
         auto newKp = mpCamera->project(kp3Drot.eval()); // pi(kp3Drot) 
 
-        cout << "Old kp: " << kp << " New kp: " << newKp << endl;
+        // cout << "Old kp: " << kp << " New kp: " << newKp << endl;
         mvKeys[i].pt = cv::Point2f(newKp(0,0), newKp(1,0)); // Replace the keypoint with the new one
     }
+    
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
+    AssignFeaturesToGrid();
 }
 
 
