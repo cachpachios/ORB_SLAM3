@@ -2875,7 +2875,7 @@ bool Tracking::TrackWithMotionModel()
 
 
 
-    cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
+    //cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 

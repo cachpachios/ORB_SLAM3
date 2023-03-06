@@ -371,11 +371,11 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     {
         if(pPrevF->HasVelocity())
         {
-            cout << "Frame: " << mnId << " has velocity" << endl;
+            //cout << "Frame: " << mnId << " has velocity" << endl;
             SetVelocity(pPrevF->GetVelocity());
         }
         else {
-            cout << "Frame: " << mnId << " has no velocity" << endl;
+            //cout << "Frame: " << mnId << " has no velocity" << endl;
         }
     }
     else
