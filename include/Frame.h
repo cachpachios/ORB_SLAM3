@@ -235,6 +235,8 @@ public:
 
     // Corresponding stereo coordinate and depth for each keypoint.
     std::vector<MapPoint*> mvpMapPoints;
+    std::vector<int> mvLastFrameMapPointIdx;
+
     // "Monocular" keypoints have a negative value.
     std::vector<float> mvuRight;
     std::vector<float> mvDepth;
@@ -357,7 +359,8 @@ public:
 
     Eigen::Vector3f UnprojectStereoFishEye(const int &i);
 
-    void RSCompensation(double rsRowTime); // Rectify for rolling shutter cameras
+    void RSCompensationExtrinsic(double rsRowTime); // Rectify for rolling shutter cameras by moving world points
+    void RSCompensationFlow(double rsRowTime); // Rectify for rolling shutter cameras by moving "pixels"
 
     cv::Mat imgLeft, imgRight;
 

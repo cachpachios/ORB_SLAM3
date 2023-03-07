@@ -2787,7 +2787,7 @@ void Tracking::UpdateLastFrame()
     mLastFrame.SetPose(Tlr * pRef->GetPose());
 
     if(mnLastKeyFrameId==mLastFrame.mnId || mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR || !mbOnlyTracking)
-        return;
+        return; // Returns for Monocular here.
 
     // Create "visual odometry" MapPoints
     // We sort points according to their measured depth by the stereo/RGB-D sensor
@@ -2864,13 +2864,12 @@ bool Tracking::TrackWithMotionModel()
     {
         // Predict state with IMU if it is initialized and it doesnt need reset
         PredictStateIMU();
-        mCurrentFrame.RSCompensation(mRsRowTime);
+        mCurrentFrame.RSCompensationExtrinsic(mRsRowTime);
         return true;
     }
     else
     {
         mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
-        mCurrentFrame.RSCompensation(mRsRowTime);
     }
 
 
@@ -2878,6 +2877,7 @@ bool Tracking::TrackWithMotionModel()
     //cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+    fill(mCurrentFrame.mvLastFrameMapPointIdx.begin(),mCurrentFrame.mvLastFrameMapPointIdx.end(),-1);
 
     // Project points seen in previous frame
     int th;
@@ -2909,6 +2909,20 @@ bool Tracking::TrackWithMotionModel()
             return false;
     }
 
+    if (!mCurrentFrame.mbRSCompensated) {
+        mCurrentFrame.RSCompensationFlow(mRsRowTime);
+
+        // Redo the matching with the compensated frame
+        fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
+        fill(mCurrentFrame.mvLastFrameMapPointIdx.begin(),mCurrentFrame.mvLastFrameMapPointIdx.end(),-1);
+
+        int nmatches_ = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
+        cout << "nmatches: " << nmatches << " nmatches_: " << nmatches_ << endl;
+        nmatches = nmatches_;
+    }
+
+
+    
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);
 
@@ -2958,7 +2972,7 @@ bool Tracking::TrackLocalMap()
     mTrackedFr++;
 
     UpdateLocalMap();
-    SearchLocalPoints();
+    SearchLocUpdateLocalMapalPoints();
 
     // TOO check outliers before PO
     int aux1 = 0, aux2=0;

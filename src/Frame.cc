@@ -60,7 +60,7 @@ Frame::Frame(const Frame &frame)
      mvKeysRight(frame.mvKeysRight), mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
      mvDepth(frame.mvDepth), mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec),
      mDescriptors(frame.mDescriptors.clone()), mDescriptorsRight(frame.mDescriptorsRight.clone()),
-     mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier), mImuCalib(frame.mImuCalib), mnCloseMPs(frame.mnCloseMPs),
+     mvpMapPoints(frame.mvpMapPoints), mvLastFrameMapPointIdx(frame.mvLastFrameMapPointIdx), mvbOutlier(frame.mvbOutlier), mImuCalib(frame.mImuCalib), mnCloseMPs(frame.mnCloseMPs),
      mpImuPreintegrated(frame.mpImuPreintegrated), mpImuPreintegratedFrame(frame.mpImuPreintegratedFrame), mImuBias(frame.mImuBias),
      mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
      mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
@@ -71,7 +71,7 @@ Frame::Frame(const Frame &frame)
      monoLeft(frame.monoLeft), monoRight(frame.monoRight), mvLeftToRightMatch(frame.mvLeftToRightMatch),
      mvRightToLeftMatch(frame.mvRightToLeftMatch), mvStereo3Dpoints(frame.mvStereo3Dpoints),
      mTlr(frame.mTlr), mRlr(frame.mRlr), mtlr(frame.mtlr), mTrl(frame.mTrl),
-     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false)
+     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(frame.mbRSCompensated), mvKeys_rs(frame.mvKeys_rs)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++){
@@ -147,6 +147,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 #endif
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvLastFrameMapPointIdx = vector<int>(N,-1);
     mvbOutlier = vector<bool>(N,false);
     mmProjectPoints.clear();
     mmMatchedInImage.clear();
@@ -239,6 +240,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     ComputeStereoFromRGBD(imDepth);
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvLastFrameMapPointIdx = vector<int>(N,-1);
 
     mmProjectPoints.clear();
     mmMatchedInImage.clear();
@@ -330,6 +332,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mnCloseMPs = 0;
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
+    mvLastFrameMapPointIdx = vector<int>(N,-1);
 
     mmProjectPoints.clear();// = map<long unsigned int, cv::Point2f>(N, static_cast<cv::Point2f>(NULL));
     mmMatchedInImage.clear();
@@ -388,7 +391,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 }
 
 
-void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocular case 
+void Frame::RSCompensationExtrinsic(double rsRowTime) // OLD Rotation compensation
 {
     if (rsRowTime == 0)
         return; // No need to do anything if there is no row time
@@ -398,6 +401,10 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
 
     mbRSCompensated = true;
     mvKeys_rs = mvKeys; // Copy the original keypoints
+    
+
+    cout << "RSCompensationExtrinsic: " << mnId << endl;
+
 
     auto qCurr = GetPose().so3().unit_quaternion();
     auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
@@ -423,6 +430,59 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
     AssignFeaturesToGrid();
 }
+
+void Frame::RSCompensationFlow(double rsRowTime) // New moving over 
+{
+    if (rsRowTime == 0)
+        return; // No need to do anything if there is no row time
+
+    if (!mpPrevFrame)
+        return; // Cant do anything if there is no previous frameq
+
+    mbRSCompensated = true;
+
+    if(!mpPrevFrame->mbRSCompensated) {
+        cout << "Previous frame ("<<mpPrevFrame->mnId<<") not compensated, compensating " << endl;
+        RSCompensationExtrinsic(rsRowTime); // If the previous frame was not compensated, do current compensation with extrinsic rotation
+        return;
+    }
+
+    mvKeys_rs = mvKeys; // Copy the original keypoints
+    
+    auto nCompensated = 0;
+    for(int i = 0; i < N; i++) {
+        int lastFrameIdx = mvLastFrameMapPointIdx[i];
+        if(lastFrameIdx==-1)
+            continue; // Not tracking on this keypoint
+
+        //Compare raw keypoints (before compensation)
+        auto kp = mvKeys_rs[i].pt;
+        auto lastKp = mpPrevFrame->mvKeys_rs[lastFrameIdx].pt;
+
+        auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
+        auto lastKp3D = mpPrevFrame->mpCamera->unprojectEig(lastKp); // pi^-1(kp)
+
+        double t = (kp.y * rsRowTime) / (mTimeStamp - mpPrevFrame->mTimeStamp); // Time between the last frame and the current frame
+
+        auto deltaKp3D = kp3D - lastKp3D; // Difference between the two keypoint positions
+
+        auto newKp3D = kp3D - deltaKp3D * t; // Move the keypoint in the direction of the delta by the time factor
+        
+        auto newKp = mpCamera->project(newKp3D.eval()); // pi(kp3Drot)
+
+        mvKeys[i].pt = cv::Point2f(newKp(0,0), newKp(1,0)); // Replace the keypoint with the new one
+
+        nCompensated++;
+    }
+    
+    assert(nCompensated > 0);
+
+    cout << "RSCompensationIntrinsic: " << mnId << " (" << nCompensated << ")" << endl;
+
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
+    AssignFeaturesToGrid();
+}
+
 
 
 void Frame::AssignFeaturesToGrid()
@@ -1157,6 +1217,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     cv::vconcat(mDescriptors,mDescriptorsRight,mDescriptors);
 
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(nullptr));
+    mvLastFrameMapPointIdx = vector<int>(N,-1);
     mvbOutlier = vector<bool>(N,false);
 
     AssignFeaturesToGrid();

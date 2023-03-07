@@ -1770,6 +1770,7 @@ namespace ORB_SLAM3
                     if(bestDist<=TH_HIGH)
                     {
                         CurrentFrame.mvpMapPoints[bestIdx2]=pMP;
+                        CurrentFrame.mvLastFrameMapPointIdx[bestIdx2] = i;
                         nmatches++;
 
                         if(mbCheckOrientation)
@@ -1966,6 +1967,7 @@ namespace ORB_SLAM3
                     if(bestDist<=ORBdist)
                     {
                         CurrentFrame.mvpMapPoints[bestIdx2]=pMP;
+                        CurrentFrame.mvLastFrameMapPointIdx[bestIdx2] = i;
                         nmatches++;
 
                         if(mbCheckOrientation)
@@ -2000,6 +2002,7 @@ namespace ORB_SLAM3
                     for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
                     {
                         CurrentFrame.mvpMapPoints[rotHist[i][j]]=NULL;
+                        CurrentFrame.mvLastFrameMapPointIdx[rotHist[i][j]] = -1;
                         nmatches--;
                     }
                 }
