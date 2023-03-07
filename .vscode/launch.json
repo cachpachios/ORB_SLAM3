@@ -13,12 +13,13 @@
         "request": "launch",
         "program": "${workspaceFolder}/Examples/Monocular/mono_tum_rs",
         "args": ["1", "${workspaceFolder}/Vocabulary/ORBvoc.txt", "${workspaceFolder}/../../SLAM_EVAL/orbslam/cam1_rs.yaml",
-         "${workspaceFolder}/../../SLAM_DATA/TUM_RS/dataset-seq4/mav0/cam1/data", "${workspaceFolder}/../../SLAM_DATA/TUM_RS/timestamps/dataset-seq4.txt"],
+         "${workspaceFolder}/../../SLAM_DATA/TUM_RS/dataset-seq8/mav0/cam1/data", "${workspaceFolder}/../../SLAM_DATA/TUM_RS/timestamps/dataset-seq8.txt"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
         "externalConsole": false,
         "MIMode": "gdb",
+        "preLaunchTask": "build.sh",
         "setupCommands": [
             {
                 "description": "Enable pretty-printing for gdb",

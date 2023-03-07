@@ -204,7 +204,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
                 }
             }
         }
-        cout << "FRAME-TRACK - Map: " << mnTracked << " VO: " << mnTrackedVO << endl;
+        //cout << "FRAME-TRACK - Map: " << mnTracked << " VO: " << mnTrackedVO << endl;
     }
 
     cv::Mat imWithInfo;
