@@ -2867,14 +2867,10 @@ bool Tracking::TrackWithMotionModel()
         mCurrentFrame.RSCompensation(mRsRowTime);
         return true;
     }
-    else
-    {
-        mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
-        mCurrentFrame.RSCompensation(mRsRowTime);
-    }
-
-
-
+    
+    mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
+    mCurrentFrame.RSCompensation(mRsRowTime);
+    
     //cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
