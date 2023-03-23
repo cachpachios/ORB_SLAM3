@@ -20,6 +20,7 @@
 #include "Tracking.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/types.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 #include<mutex>
@@ -41,6 +42,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
     vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
     vector<int> vMatches; // Initialization: correspondeces with reference keypoints
     vector<cv::KeyPoint> vCurrentKeys, vCurrentKeysRS; // KeyPoints in current frame
+    vector<cv::Point2f> vRotatedPoints; // Rotated points
     vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
     vector<pair<cv::Point2f, cv::Point2f> > vTracks;
     int state; // Tracking state
@@ -58,6 +60,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
 
     cv::Scalar standardColor(0,255,0);
     cv::Scalar odometryColor(255,0,0);
+    cv::Scalar untrackedColor(0,0,255);
 
     //Copy variables within scoped mutex
     {
@@ -103,6 +106,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
         {
             vCurrentKeysRS = mvCurrentKeysRS;
         }
+        vRotatedPoints = rotatedPoints;
     }
 
     if(imageScale != 1.f)
@@ -161,7 +165,7 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
         int n = vCurrentKeys.size();
         for(int i=0;i<n;i++)
         {
-            if(vbVO[i] || vbMap[i])
+            //if(vbVO[i] || vbMap[i])
             {
                 cv::Point2f pt1,pt2;
                 cv::Point2f point;
@@ -191,16 +195,21 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
                     cv::circle(im,point,2,standardColor,-1);
                     mnTracked++;
                 }
-                else // This is match to a "visual odometry" MapPoint created in the last frame
+                else if (vbVO[i]) // This is match to a "visual odometry" MapPoint created in the last frame
                 {
                     cv::rectangle(im,pt1,pt2,odometryColor);
                     cv::circle(im,point,2,odometryColor,-1);
                     mnTrackedVO++;
                 }
+                else {
+                    cv::rectangle(im,pt1,pt2,untrackedColor);
+                    cv::circle(im,point,1,untrackedColor,-1);
+                }
 
                 if(hasRSKeys)
                 {
                     cv::line(im, point, vCurrentKeysRS[i].pt, cv::Scalar(0,0,255));
+                    cv::circle(im, vRotatedPoints[i], 1, cv::Scalar(0,255,0), -1);
                 }
             }
         }
@@ -388,7 +397,7 @@ void FrameDrawer::Update(Tracking *pTracker)
     hasRSKeys = pTracker->mCurrentFrame.mbRSCompensated;
     if(hasRSKeys)
         mvCurrentKeysRS = pTracker->mCurrentFrame.mvKeys_rs;
-
+    rotatedPoints = pTracker->mCurrentFrame.rotatedPoints;
     mThDepth = pTracker->mCurrentFrame.mThDepth;
     mvCurrentDepth = pTracker->mCurrentFrame.mvDepth;
 

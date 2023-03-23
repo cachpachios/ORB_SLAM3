@@ -19,6 +19,8 @@
 
 #include "ORBmatcher.h"
 
+#include <Eigen/src/Core/Matrix.h>
+#include <cstddef>
 #include<limits.h>
 
 #include<opencv2/core/core.hpp>
@@ -1886,6 +1888,88 @@ namespace ORB_SLAM3
         return nmatches;
     }
 
+
+
+int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastFrame, const float th, std::vector<int> &lastFrameMatches, const bool bMono)
+    { // Used for RSComp
+        int nmatches = 0;
+
+        const Sophus::SE3f cPose = CurrentFrame.GetPose();
+
+        const Eigen::Vector3f twc = cPose.inverse().translation();
+
+        const Sophus::SE3f lPose = LastFrame.GetPose();
+        const Eigen::Vector3f tlc = lPose * twc;
+
+        const bool bForward = tlc(2)>CurrentFrame.mb && !bMono;
+        const bool bBackward = -tlc(2)>CurrentFrame.mb && !bMono;
+
+        const auto cRot = cPose.so3().unit_quaternion();
+        const auto lRot = lPose.so3().unit_quaternion();
+
+        
+        const auto relRot = lRot * cRot.inverse();
+
+
+        fill(lastFrameMatches.begin(), lastFrameMatches.end(), -1);
+
+        for (auto it = LastFrame.mvKeys.begin(); it != LastFrame.mvKeys.end(); it++) {
+            size_t index = distance(LastFrame.mvKeys.begin(), it);
+            const auto lKp = *it;
+
+            Eigen::Vector3f lKp3D = LastFrame.mpCamera->unprojectEig(lKp.pt);
+            Eigen::Vector3f cKp3D = relRot.toRotationMatrix().inverse() * lKp3D;
+            Eigen::Vector2f uv = CurrentFrame.mpCamera->project(cKp3D); // Reprojected.
+
+            int nLastOctave = (LastFrame.Nleft == -1 || index < LastFrame.Nleft) ? LastFrame.mvKeys[index].octave
+                                                                    : LastFrame.mvKeysRight[index - LastFrame.Nleft].octave;
+
+            // Search radius (octave dependent)
+            float radius = th*CurrentFrame.mvScaleFactors[nLastOctave];
+
+            vector<size_t> toCompare; // What features to compare to in current frame
+
+            if(bForward)
+                toCompare = CurrentFrame.GetFeaturesInArea(uv(0),uv(1), radius, nLastOctave);
+            else if(bBackward)
+                toCompare = CurrentFrame.GetFeaturesInArea(uv(0),uv(1), radius, 0, nLastOctave);
+            else
+                toCompare = CurrentFrame.GetFeaturesInArea(uv(0),uv(1), radius, nLastOctave-1, nLastOctave+1);
+
+            if(toCompare.empty())
+                continue;
+            
+             const cv::Mat lKpDescriptor = LastFrame.mDescriptors.row(index);
+            
+            int bestDist = 256;
+            int bestIdx = -1;
+
+            for(auto vit = toCompare.begin(), vend = toCompare.end(); vit!=vend; vit++)
+            {  //Loop all features in current frame and compare to last frame features
+                const int compareIndex = *vit;
+
+                const cv::Mat cKpDescriptor = CurrentFrame.mDescriptors.row(compareIndex);
+                
+                int dist = DescriptorDistance(lKpDescriptor,cKpDescriptor);
+                
+                if(dist<bestDist)
+                {
+                    bestDist=dist;
+                    bestIdx=compareIndex;
+                }
+            }
+            if (bestIdx!=-1) nmatches++; // In other words: if bestIdx is not -1, add 1 to nmatches
+            lastFrameMatches[index] = bestIdx;
+        }
+
+        return nmatches;
+    }
+
+
+
+
+
+
     int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set<MapPoint*> &sAlreadyFound, const float th , const int ORBdist)
     {
         int nmatches = 0;
@@ -2008,6 +2092,10 @@ namespace ORB_SLAM3
 
         return nmatches;
     }
+
+
+
+    
 
     void ORBmatcher::ComputeThreeMaxima(vector<int>* histo, const int L, int &ind1, int &ind2, int &ind3)
     {

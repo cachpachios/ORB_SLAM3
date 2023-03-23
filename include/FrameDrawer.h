@@ -25,6 +25,7 @@
 #include "Atlas.h"
 
 #include<opencv2/core/core.hpp>
+#include <opencv2/core/types.hpp>
 #include<opencv2/features2d/features2d.hpp>
 
 #include<mutex>
@@ -60,6 +61,7 @@ protected:
     cv::Mat mIm, mImRight;
     int N;
     vector<cv::KeyPoint> mvCurrentKeys,mvCurrentKeysRight, mvCurrentKeysRS;
+    vector<cv::Point2f> rotatedPoints;
     bool hasRSKeys = false;
     vector<bool> mvbMap, mvbVO;
     bool mbOnlyTracking;

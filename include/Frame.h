@@ -232,6 +232,7 @@ public:
 
     bool mbRSCompensated = false;
     std::vector<cv::KeyPoint> mvKeys_rs; // Not compensated for rs-distortion, used for visualization
+    std::vector<cv::Point2f> rotatedPoints;
 
     // Corresponding stereo coordinate and depth for each keypoint.
     std::vector<MapPoint*> mvpMapPoints;
@@ -358,6 +359,7 @@ public:
     Eigen::Vector3f UnprojectStereoFishEye(const int &i);
 
     void RSCompensation(double rsRowTime); // Rectify for rolling shutter cameras
+    void RSCompensationFlow(double rsRowTime); // Rectify for rolling shutter cameras
 
     cv::Mat imgLeft, imgRight;
 

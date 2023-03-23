@@ -8,7 +8,7 @@
     "version": "0.2.0",
     "configurations": [
     {
-        "name": "(gdb) Launch Mono TUM RS",
+        "name": "(gdb) Launch RS",
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/Examples/Monocular/mono_tum_rs",
@@ -19,7 +19,28 @@
         "environment": [],
         "externalConsole": false,
         "MIMode": "gdb",
-        "preLaunchTask": "build.sh",
+        "preLaunchTask": "build_debug.sh",
+        "setupCommands": [
+            {
+                "description": "Enable pretty-printing for gdb",
+                "text": "-enable-pretty-printing",
+                "ignoreFailures": true
+            }
+        ]
+    },
+    {
+        "name": "(gdb) Launch GS",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/Examples/Monocular/mono_tum_rs",
+        "args": ["1", "${workspaceFolder}/Vocabulary/ORBvoc.txt", "${workspaceFolder}/../../SLAM_EVAL/orbslam/cam0.yaml",
+         "${workspaceFolder}/../../SLAM_DATA/TUM_RS/dataset-seq8/mav0/cam0/data", "${workspaceFolder}/../../SLAM_DATA/TUM_RS/timestamps/dataset-seq8.txt"],
+        "stopAtEntry": false,
+        "cwd": "${fileDirname}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "preLaunchTask": "build_debug.sh",
         "setupCommands": [
             {
                 "description": "Enable pretty-printing for gdb",

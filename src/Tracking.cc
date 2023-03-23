@@ -2864,13 +2864,14 @@ bool Tracking::TrackWithMotionModel()
     {
         // Predict state with IMU if it is initialized and it doesnt need reset
         PredictStateIMU();
-        mCurrentFrame.RSCompensation(mRsRowTime);
+        //mCurrentFrame.RSCompensation(mRsRowTime);
         return true;
     }
     
     mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
-    mCurrentFrame.RSCompensation(mRsRowTime);
-    
+    //mCurrentFrame.RSCompensation(mRsRowTime);
+
+    mCurrentFrame.RSCompensationFlow(mRsRowTime);
     //cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));

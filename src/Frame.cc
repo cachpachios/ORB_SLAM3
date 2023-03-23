@@ -71,7 +71,7 @@ Frame::Frame(const Frame &frame)
      monoLeft(frame.monoLeft), monoRight(frame.monoRight), mvLeftToRightMatch(frame.mvLeftToRightMatch),
      mvRightToLeftMatch(frame.mvRightToLeftMatch), mvStereo3Dpoints(frame.mvStereo3Dpoints),
      mTlr(frame.mTlr), mRlr(frame.mRlr), mtlr(frame.mtlr), mTrl(frame.mTrl),
-     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(frame.mbRSCompensated), mvKeys_rs(frame.mvKeys_rs),
+     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(frame.mbRSCompensated), mvKeys_rs(frame.mvKeys_rs)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++){
@@ -422,6 +422,39 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     
     UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
     AssignFeaturesToGrid();
+}
+
+void Frame::RSCompensationFlow(double rsRowTime)
+{   
+    RSCompensation(rsRowTime);
+    ORBmatcher matcher(0.9,false);
+    vector<int> pmatches(mpPrevFrame->N, -1);
+    int npmatches = matcher.SearchByProjectionPoints(*this, *mpPrevFrame, 20, pmatches, true);
+    mvKeys_rs = mvKeys; 
+    mbRSCompensated = true;
+    cout << "SearchByProjectionPoints: "<< npmatches << " / " << pmatches.size() << ", N_prev=" << mpPrevFrame->N << " N_curr=" << N << endl;
+    for (int i = 0; i < npmatches; i++)
+    {
+        if (pmatches[i] != -1)
+        {
+            mvKeys_rs[pmatches[i]].pt = mpPrevFrame->mvKeys[i].pt;
+        }
+    }
+
+    auto qCurr = GetPose().so3().unit_quaternion();
+    auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
+    auto forwardRot = qLast * qCurr.inverse();
+    rotatedPoints = vector<cv::Point2f>(N);
+    for(int i=0;i<N;i++) // For each detected keypoint
+    {
+        auto kp = mvKeys[i].pt;
+        auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
+        
+        auto kp3Drot = forwardRot.toRotationMatrix() * kp3D; // pi^-1(kp) rotated in world space.
+        
+        auto newKp = mpCamera->project(kp3Drot.eval()); // pi(kp3Drot)
+        rotatedPoints[i] = cv::Point2f(newKp(0,0), newKp(1,0));
+    }
 }
 
 
