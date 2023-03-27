@@ -61,7 +61,6 @@ protected:
     cv::Mat mIm, mImRight;
     int N;
     vector<cv::KeyPoint> mvCurrentKeys,mvCurrentKeysRight, mvCurrentKeysRS;
-    vector<cv::Point2f> rotatedPoints;
     bool hasRSKeys = false;
     vector<bool> mvbMap, mvbVO;
     bool mbOnlyTracking;

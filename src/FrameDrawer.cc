@@ -42,7 +42,6 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
     vector<cv::KeyPoint> vIniKeys; // Initialization: KeyPoints in reference frame
     vector<int> vMatches; // Initialization: correspondeces with reference keypoints
     vector<cv::KeyPoint> vCurrentKeys, vCurrentKeysRS; // KeyPoints in current frame
-    vector<cv::Point2f> vRotatedPoints; // Rotated points
     vector<bool> vbVO, vbMap; // Tracked MapPoints in current frame
     vector<pair<cv::Point2f, cv::Point2f> > vTracks;
     int state; // Tracking state
@@ -106,7 +105,6 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
         {
             vCurrentKeysRS = mvCurrentKeysRS;
         }
-        vRotatedPoints = rotatedPoints;
     }
 
     if(imageScale != 1.f)
@@ -209,7 +207,6 @@ cv::Mat FrameDrawer::DrawFrame(float imageScale)
                 if(hasRSKeys)
                 {
                     cv::line(im, point, vCurrentKeysRS[i].pt, cv::Scalar(0,0,255));
-                    cv::circle(im, vRotatedPoints[i], 1, cv::Scalar(0,255,0), -1);
                 }
             }
         }
@@ -397,7 +394,6 @@ void FrameDrawer::Update(Tracking *pTracker)
     hasRSKeys = pTracker->mCurrentFrame.mbRSCompensated;
     if(hasRSKeys)
         mvCurrentKeysRS = pTracker->mCurrentFrame.mvKeys_rs;
-    rotatedPoints = pTracker->mCurrentFrame.rotatedPoints;
     mThDepth = pTracker->mCurrentFrame.mThDepth;
     mvCurrentDepth = pTracker->mCurrentFrame.mvDepth;
 

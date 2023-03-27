@@ -232,7 +232,6 @@ public:
 
     bool mbRSCompensated = false;
     std::vector<cv::KeyPoint> mvKeys_rs; // Not compensated for rs-distortion, used for visualization
-    std::vector<cv::Point2f> rotatedPoints;
 
     // Corresponding stereo coordinate and depth for each keypoint.
     std::vector<MapPoint*> mvpMapPoints;

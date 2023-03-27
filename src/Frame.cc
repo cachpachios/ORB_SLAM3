@@ -292,7 +292,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
      mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
-     mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false)
+     mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(false)
 {
     // Frame ID
     mnId=nNextId++;
@@ -402,14 +402,12 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     auto qCurr = GetPose().so3().unit_quaternion();
     auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
 
-    mvKeys_rs.resize(mvKeys.size());
     for(int i=0;i<N;i++) // For each detected keypoint
     {
         auto kp = mvKeys[i].pt;
         auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
 
         double t = (kp.y * rsRowTime) / (mTimeStamp - mpPrevFrame->mTimeStamp); // Time between the last frame and the current frame
-
         auto forwardRot = qLast.slerp(t, qCurr) * qLast.inverse(); // Assumes that the rotation is small enough to be approximated by a forward linear interpolation
 
         auto kp3Drot = forwardRot.toRotationMatrix().inverse() * kp3D; // pi^-1(kp) rotated in world space.
@@ -424,37 +422,64 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     AssignFeaturesToGrid();
 }
 
-void Frame::RSCompensationFlow(double rsRowTime)
+void Frame::RSCompensationFlow(double rsRowTime) // CWP
 {   
     RSCompensation(rsRowTime);
     ORBmatcher matcher(0.9,false);
     vector<int> pmatches(mpPrevFrame->N, -1);
     int npmatches = matcher.SearchByProjectionPoints(*this, *mpPrevFrame, 20, pmatches, true);
-    mvKeys_rs = mvKeys; 
-    mbRSCompensated = true;
-    cout << "SearchByProjectionPoints: "<< npmatches << " / " << pmatches.size() << ", N_prev=" << mpPrevFrame->N << " N_curr=" << N << endl;
-    for (int i = 0; i < npmatches; i++)
+
+    auto ourPose = GetPose();
+    auto theirPose = mpPrevFrame->GetPose();
+
+    Eigen::Matrix<float,3,4> eigTcw1 = ourPose.matrix3x4();
+    Eigen::Matrix3f Rcw1 = eigTcw1.block<3,3>(0,0);
+
+    vector<Eigen::Vector3f> worldPoints(mvKeys.size());
+
+    double depthsum = 0;
+    int depthcount = 0;
+    int skipped = 0;
+    int bad = 0;
+
+    int nBads[4] = {0,0,0,0};
+
+    auto myCam = static_cast<KannalaBrandt8*>(mpCamera);
+    for (int i = 0; i < mpPrevFrame->N; i++)
     {
         if (pmatches[i] != -1)
         {
-            mvKeys_rs[pmatches[i]].pt = mpPrevFrame->mvKeys[i].pt;
+            auto ours = mvKeys[pmatches[i]];
+            auto theirs = mpPrevFrame->mvKeys[i];
+
+            Eigen::Vector3f worldPoint;
+
+            auto sigma1 = mvLevelSigma2[ours.octave];
+            auto sigma2 = mpPrevFrame->mvLevelSigma2[theirs.octave];
+            int res = myCam->matchAndtriangulate2(ours, theirs, mpPrevFrame->mpCamera, ourPose, theirPose, sigma1, sigma2, worldPoint);
+            if (res == 0) {
+                float depth = Rcw1.row(2).dot(worldPoint) + ourPose.translation()(2);
+                depthsum += depth;
+                depthcount++;
+                bad++;
+            }
+            else
+            {
+                nBads[res-1]++;
+            }
+        }
+        else
+        {
+            skipped++;
         }
     }
 
-    auto qCurr = GetPose().so3().unit_quaternion();
-    auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
-    auto forwardRot = qLast * qCurr.inverse();
-    rotatedPoints = vector<cv::Point2f>(N);
-    for(int i=0;i<N;i++) // For each detected keypoint
+    cout << "Frame average depth: " << depthsum / depthcount << "(" << depthcount << "/" << depthcount+skipped+bad << ") ( ";
+    for (int i = 0; i < 4; i++)
     {
-        auto kp = mvKeys[i].pt;
-        auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
-        
-        auto kp3Drot = forwardRot.toRotationMatrix() * kp3D; // pi^-1(kp) rotated in world space.
-        
-        auto newKp = mpCamera->project(kp3Drot.eval()); // pi(kp3Drot)
-        rotatedPoints[i] = cv::Point2f(newKp(0,0), newKp(1,0));
+        cout << nBads[i] << " ";
     }
+    cout << ")" << endl;
 }
 
 

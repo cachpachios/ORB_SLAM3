@@ -223,6 +223,13 @@ namespace ORB_SLAM3 {
                                              Sophus::SE3f& Tcw1, Sophus::SE3f& Tcw2,
                                              const float sigmaLevel1, const float sigmaLevel2,
                                              Eigen::Vector3f& x3Dtriangulated){
+        return this->matchAndtriangulate2(kp1,kp2,pOther,Tcw1,Tcw2,sigmaLevel1,sigmaLevel2,x3Dtriangulated) == 0;
+    }
+
+    int KannalaBrandt8::matchAndtriangulate2(const cv::KeyPoint& kp1, const cv::KeyPoint& kp2, GeometricCamera* pOther,
+                                             Sophus::SE3f& Tcw1, Sophus::SE3f& Tcw2,
+                                             const float sigmaLevel1, const float sigmaLevel2,
+                                             Eigen::Vector3f& x3Dtriangulated){
         Eigen::Matrix<float,3,4> eigTcw1 = Tcw1.matrix3x4();
         Eigen::Matrix3f Rcw1 = eigTcw1.block<3,3>(0,0);
         Eigen::Matrix3f Rwc1 = Rcw1.transpose();
@@ -244,10 +251,9 @@ namespace ORB_SLAM3 {
 
         //If parallax is lower than 0.9998, reject this match
         if(cosParallaxRays > 0.9998){
-            return false;
+            return 1;
         }
 
-        //Parallax is good, so we try to triangulate
         cv::Point2f p11,p22;
 
         p11.x = ray1c.x;
@@ -263,13 +269,13 @@ namespace ORB_SLAM3 {
         //Check triangulation in front of cameras
         float z1 = Rcw1.row(2).dot(x3D)+Tcw1.translation()(2);
         if(z1<=0){  //Point is not in front of the first camera
-            return false;
+            return 2;
         }
 
 
         float z2 = Rcw2.row(2).dot(x3D)+Tcw2.translation()(2);
         if(z2<=0){ //Point is not in front of the first camera
-            return false;
+            return 3;
         }
 
         //Check reprojection error in first keyframe
@@ -281,7 +287,7 @@ namespace ORB_SLAM3 {
         float errY1 = uv1(1) - kp1.pt.y;
 
         if((errX1*errX1+errY1*errY1)>5.991*sigmaLevel1){   //Reprojection error is high
-            return false;
+            return 4;
         }
 
         //Check reprojection error in second keyframe;
@@ -293,14 +299,14 @@ namespace ORB_SLAM3 {
         float errY2 = uv2(1) - kp2.pt.y;
 
         if((errX2*errX2+errY2*errY2)>5.991*sigmaLevel2){   //Reprojection error is high
-            return false;
+            return 5;
         }
 
         //Since parallax is big enough and reprojection errors are low, this pair of points
         //can be considered as a match
         x3Dtriangulated = x3D;
 
-        return true;
+        return 0;
     }
 
     float KannalaBrandt8::TriangulateMatches(GeometricCamera *pCamera2, const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const Eigen::Matrix3f& R12, const Eigen::Vector3f& t12, const float sigmaLevel, const float unc, Eigen::Vector3f& p3D) {
