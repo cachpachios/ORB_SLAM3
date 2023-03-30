@@ -428,6 +428,16 @@ void Frame::RSCompensationFlow(double rsRowTime) // CWP
     ORBmatcher matcher(0.9,false);
     vector<int> pmatches(mpPrevFrame->N, -1);
     int npmatches = matcher.SearchByProjectionPoints(*this, *mpPrevFrame, 20, pmatches, true);
+    
+    mvKeys_rs = mvKeys;
+    mbRSCompensated = true;
+    for (int i = 0; i < mpPrevFrame->N; i++)
+    {
+        if (pmatches[i] != -1)
+        {
+            mvKeys_rs[pmatches[i]].pt = mpPrevFrame->mvKeys[i].pt;
+        }
+    }
 
     auto ourPose = GetPose();
     auto theirPose = mpPrevFrame->GetPose();
@@ -461,10 +471,10 @@ void Frame::RSCompensationFlow(double rsRowTime) // CWP
                 float depth = Rcw1.row(2).dot(worldPoint) + ourPose.translation()(2);
                 depthsum += depth;
                 depthcount++;
-                bad++;
             }
             else
             {
+                bad++;
                 nBads[res-1]++;
             }
         }
