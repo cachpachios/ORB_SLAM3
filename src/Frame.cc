@@ -288,10 +288,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 // Monocular constructor
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, KeyFrame* pRefKF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
-     mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
+     mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(pRefKF), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
      mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(false)
 {
     // Frame ID
@@ -426,21 +426,21 @@ void Frame::RSCompensationFlow(double rsRowTime) // CWP
 {   
     RSCompensation(rsRowTime);
     ORBmatcher matcher(0.9,false);
-    vector<int> pmatches(mpPrevFrame->N, -1);
-    int npmatches = matcher.SearchByProjectionPoints(*this, *mpPrevFrame, 20, pmatches, true);
+    vector<int> pmatches(mpReferenceKF->N, -1);
+    int npmatches = matcher.SearchByProjectionPoints(*this, *mpReferenceKF, 20, pmatches, true);
     
     mvKeys_rs = mvKeys;
     mbRSCompensated = true;
-    for (int i = 0; i < mpPrevFrame->N; i++)
+    for (int i = 0; i < mpReferenceKF->N; i++)
     {
         if (pmatches[i] != -1)
         {
-            mvKeys_rs[pmatches[i]].pt = mpPrevFrame->mvKeys[i].pt;
+            mvKeys_rs[pmatches[i]].pt = mpReferenceKF->mvKeys[i].pt;
         }
     }
 
     auto ourPose = GetPose();
-    auto theirPose = mpPrevFrame->GetPose();
+    auto theirPose = mpReferenceKF->GetPose();
 
     Eigen::Matrix<float,3,4> eigTcw1 = ourPose.matrix3x4();
     Eigen::Matrix3f Rcw1 = eigTcw1.block<3,3>(0,0);
@@ -455,18 +455,18 @@ void Frame::RSCompensationFlow(double rsRowTime) // CWP
     int nBads[4] = {0,0,0,0};
 
     auto myCam = static_cast<KannalaBrandt8*>(mpCamera);
-    for (int i = 0; i < mpPrevFrame->N; i++)
+    for (int i = 0; i < mpReferenceKF->N; i++)
     {
         if (pmatches[i] != -1)
         {
             auto ours = mvKeys[pmatches[i]];
-            auto theirs = mpPrevFrame->mvKeys[i];
+            auto theirs = mpReferenceKF->mvKeys[i];
 
             Eigen::Vector3f worldPoint;
 
             auto sigma1 = mvLevelSigma2[ours.octave];
-            auto sigma2 = mpPrevFrame->mvLevelSigma2[theirs.octave];
-            int res = myCam->matchAndtriangulate2(ours, theirs, mpPrevFrame->mpCamera, ourPose, theirPose, sigma1, sigma2, worldPoint);
+            auto sigma2 = mpReferenceKF->mvLevelSigma2[theirs.octave];
+            int res = myCam->matchAndtriangulate2(ours, theirs, mpReferenceKF->mpCamera, ourPose, theirPose, sigma1, sigma2, worldPoint);
             if (res == 0) {
                 float depth = Rcw1.row(2).dot(worldPoint) + ourPose.translation()(2);
                 depthsum += depth;
@@ -1143,9 +1143,9 @@ void Frame::setIntegrated()
     mbImuPreintegrated = true;
 }
 
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera, GeometricCamera* pCamera2, Sophus::SE3f& Tlr,Frame* pPrevF, const IMU::Calib &ImuCalib)
+Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera, GeometricCamera* pCamera2, Sophus::SE3f& Tlr,Frame* pPrevF, KeyFrame* pRefKf, const IMU::Calib &ImuCalib)
         :mpcpi(NULL), mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), mK_(Converter::toMatrix3f(K)),  mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
-         mImuCalib(ImuCalib), mpImuPreintegrated(NULL), mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbImuPreintegrated(false), mpCamera(pCamera), mpCamera2(pCamera2),
+         mImuCalib(ImuCalib), mpImuPreintegrated(NULL), mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(pRefKf), mbImuPreintegrated(false), mpCamera(pCamera), mpCamera2(pCamera2),
          mbHasPose(false), mbHasVelocity(false)
 
 {

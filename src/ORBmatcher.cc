@@ -25,6 +25,7 @@
 
 #include<opencv2/core/core.hpp>
 
+#include "KeyFrame.h"
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
 
 #include<stdint-gcc.h>
@@ -1890,7 +1891,7 @@ namespace ORB_SLAM3
 
 
 
-int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastFrame, const float th, std::vector<int> &lastFrameMatches, const bool bMono)
+int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const KeyFrame &RefKeyF, const float th, std::vector<int> &refKfMatches, const bool bMono)
     { // Used for RSComp
         int nmatches = 0;
 
@@ -1898,7 +1899,7 @@ int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastF
 
         const Eigen::Vector3f twc = cPose.inverse().translation();
 
-        const Sophus::SE3f lPose = LastFrame.GetPose();
+        const Sophus::SE3f lPose = RefKeyF.GetPose();
         const Eigen::Vector3f tlc = lPose * twc;
 
         const bool bForward = tlc(2)>CurrentFrame.mb && !bMono;
@@ -1911,18 +1912,18 @@ int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastF
         const auto relRot = lRot * cRot.inverse();
 
 
-        fill(lastFrameMatches.begin(), lastFrameMatches.end(), -1);
+        fill(refKfMatches.begin(), refKfMatches.end(), -1);
 
-        for (auto it = LastFrame.mvKeys.begin(); it != LastFrame.mvKeys.end(); it++) {
-            size_t index = distance(LastFrame.mvKeys.begin(), it);
+        for (auto it = RefKeyF.mvKeys.begin(); it != RefKeyF.mvKeys.end(); it++) {
+            size_t index = distance(RefKeyF.mvKeys.begin(), it);
             const auto lKp = *it;
 
-            Eigen::Vector3f lKp3D = LastFrame.mpCamera->unprojectEig(lKp.pt);
+            Eigen::Vector3f lKp3D = RefKeyF.mpCamera->unprojectEig(lKp.pt);
             Eigen::Vector3f cKp3D = relRot.toRotationMatrix().inverse() * lKp3D;
             Eigen::Vector2f uv = CurrentFrame.mpCamera->project(cKp3D); // Reprojected.
 
-            int nLastOctave = (LastFrame.Nleft == -1 || index < LastFrame.Nleft) ? LastFrame.mvKeys[index].octave
-                                                                    : LastFrame.mvKeysRight[index - LastFrame.Nleft].octave;
+            int nLastOctave = (RefKeyF.N == -1 || index < RefKeyF.N) ? RefKeyF.mvKeys[index].octave
+                                                                    : RefKeyF.mvKeysRight[index - RefKeyF.N].octave;
 
             // Search radius (octave dependent)
             float radius = th*CurrentFrame.mvScaleFactors[nLastOctave];
@@ -1939,7 +1940,7 @@ int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastF
             if(toCompare.empty())
                 continue;
             
-             const cv::Mat lKpDescriptor = LastFrame.mDescriptors.row(index);
+            const cv::Mat lKpDescriptor = RefKeyF.mDescriptors.row(index);
             
             int bestDist = 256;
             int bestIdx = -1;
@@ -1959,7 +1960,7 @@ int ORBmatcher::SearchByProjectionPoints(Frame &CurrentFrame, const Frame &LastF
                 }
             }
             if (bestIdx!=-1) nmatches++; // In other words: if bestIdx is not -1, add 1 to nmatches
-            lastFrameMatches[index] = bestIdx;
+            refKfMatches[index] = bestIdx;
         }
 
         return nmatches;
