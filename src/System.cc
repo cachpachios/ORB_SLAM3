@@ -239,7 +239,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     // Fix verbosity
     Verbose::SetTh(Verbose::VERBOSITY_QUIET);
-
+    mvMapPointOctaves = vector<vector<int>>(settings_->nLevels());
 }
 
 Sophus::SE3f System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
@@ -471,6 +471,21 @@ Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, 
     mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
     mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
 
+    // Count mappoints octaves!
+    int num_octaves = mpTracker->mCurrentFrame.mvScaleFactors.size();
+    auto keypoints_per_octave = vector<int>(num_octaves, 0);
+    fill(keypoints_per_octave.begin(), keypoints_per_octave.end(), 0);
+
+    for(int i = 0; i < mpTracker->mCurrentFrame.N; i++)
+    {
+        if (mpTracker->mCurrentFrame.mvpMapPoints[i]) {
+            int octave = mpTracker->mCurrentFrame.mvKeys[i].octave;
+            keypoints_per_octave[octave]++;
+        }
+    }
+
+    mvMapPointOctaves.push_back(keypoints_per_octave);
+
     return Tcw;
 }
 
@@ -658,6 +673,24 @@ void System::SaveKeyFrameTrajectoryTUM(const string &filename)
     }
 
     f.close();
+}
+
+void System::SaveOctaveLevels(const string &filename) {
+
+    ofstream fw(filename, std::ofstream::app);
+        if (fw.is_open())
+        {
+        //store array contents to text file
+        for (int frame = 0; frame < mvMapPointOctaves.size(); frame++) {
+            std::vector<int> octaves = mvMapPointOctaves[frame];
+            for (int i = 0; i < octaves.size(); i++) {
+                fw << octaves[i] << " ";
+            }
+            fw << std::endl;
+        }
+        fw.close();
+        }
+        else cout << "Problem with opening file";
 }
 
 void System::SaveTrajectoryEuRoC(const string &filename)
