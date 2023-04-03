@@ -2907,6 +2907,7 @@ bool Tracking::TrackWithMotionModel()
 
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);
+    mCurrentFrame.RSCompensation(mRsRowTime); // Redo RSComp with better pose!
 
     // Discard outliers
     int nmatchesMap = 0;
