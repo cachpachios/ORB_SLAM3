@@ -2884,7 +2884,7 @@ bool Tracking::TrackWithMotionModel()
         th=15;
 
     int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
-    
+    mCurrentFrame.RSMapCompensation(mRsRowTime);
     // If few matches, uses a wider window search
     if(nmatches<20)
     {
@@ -2907,7 +2907,7 @@ bool Tracking::TrackWithMotionModel()
 
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);
-    mCurrentFrame.RSCompensation(mRsRowTime); // Redo RSComp with better pose!
+    mCurrentFrame.RSMapCompensation(mRsRowTime); // Redo RSComp with better pose!
 
     // Discard outliers
     int nmatchesMap = 0;
