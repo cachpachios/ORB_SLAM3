@@ -430,7 +430,7 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
 }
 
 
-void Frame::RSMapCompensation(double rsRowTime) // Only implemented for the monocular case 
+void Frame::RSMapCompensation(const double rsRowTime, const double onlyMapPoints) // Only implemented for the monocular case 
 {
     if (rsRowTime == 0)
         return; // No need to do anything if there is no row time
@@ -463,6 +463,9 @@ void Frame::RSMapCompensation(double rsRowTime) // Only implemented for the mono
             auto kp3Dc = Twc * mvpMapPoints[i]->GetWorldPos(); // mappoint in camera space
             kp3D = kp3D.normalized() * kp3Dc.norm(); // mappoint in camera space with the same depth as the mappoint
         }
+
+        if (onlyMapPoints && !hasDepth)
+            continue;
 
         double t = (kp.y * rsRowTime) / (mTimeStamp - mpPrevFrame->mTimeStamp); // Time between the last frame and the current frame
 
