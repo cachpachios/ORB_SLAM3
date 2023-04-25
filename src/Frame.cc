@@ -424,7 +424,7 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
         mvKeys[i].pt = cv::Point2f(newKp(0,0), newKp(1,0)); // Replace the keypoint with the new one
     }
     
-    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt (except copies the keypoints)
     AssignFeaturesToGrid();
 }
 

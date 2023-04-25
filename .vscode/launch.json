@@ -27,6 +27,27 @@
                 "ignoreFailures": true
             }
         ]
+    },
+    {
+        "name": "(gdb) Launch G3",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/Examples/Monocular/mono_tum_rs",
+        "args": ["1", "${workspaceFolder}/Vocabulary/ORBvoc.txt", "${workspaceFolder}/../../SLAM_DATA/G3/20220817T155712Z/config.yaml",
+         "${workspaceFolder}/../../SLAM_DATA/G3/20220817T155712Z/images", "${workspaceFolder}/../../SLAM_DATA/G3/timestamps/20220817T155712Z_short.txt"],
+        "stopAtEntry": false,
+        "cwd": "${fileDirname}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "preLaunchTask": "build_debug.sh",
+        "setupCommands": [
+            {
+                "description": "Enable pretty-printing for gdb",
+                "text": "-enable-pretty-printing",
+                "ignoreFailures": true
+            }
+        ]
     }
     ]
 }

@@ -472,7 +472,7 @@ Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, 
     mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
 
     // Count mappoints octaves!
-    int num_octaves = mpTracker->mCurrentFrame.mvScaleFactors.size();
+    int num_octaves = settings_->nLevels();
     auto keypoints_per_octave = vector<int>(num_octaves, 0);
     fill(keypoints_per_octave.begin(), keypoints_per_octave.end(), 0);
 
