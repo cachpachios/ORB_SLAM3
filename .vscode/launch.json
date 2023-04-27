@@ -29,6 +29,27 @@
         ]
     },
     {
+        "name": "(gdb) Launch Inert TUM RS",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/Examples/Monocular-Inertial/mono_inertial_tum_rs",
+        "args": ["1", "cam1", "${workspaceFolder}/Vocabulary/ORBvoc.txt", "${workspaceFolder}/../../SLAM_EVAL/orbslam/cam1_rs.yaml",
+         "${workspaceFolder}/../../SLAM_DATA/TUM_RS/dataset-seq8", "${workspaceFolder}/../../SLAM_DATA/TUM_RS/timestamps/dataset-seq8.txt"],
+        "stopAtEntry": false,
+        "cwd": "${fileDirname}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "preLaunchTask": "build_debug.sh",
+        "setupCommands": [
+            {
+                "description": "Enable pretty-printing for gdb",
+                "text": "-enable-pretty-printing",
+                "ignoreFailures": true
+            }
+        ]
+    },
+    {
         "name": "(gdb) Launch G3",
         "type": "cppdbg",
         "request": "launch",
