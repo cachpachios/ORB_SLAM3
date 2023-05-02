@@ -403,28 +403,43 @@ void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocul
     mbRSCompensated = true;
     mvKeys_rs = mvKeys; // Copy the original keypoints
 
-    auto qCurr = GetPose().so3().unit_quaternion();
+    auto Twc = GetPose();
+    auto qCurr = Twc.so3().unit_quaternion();
     auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
+    auto tCurr = Twc.translation();
+    auto tLast = mpPrevFrame->GetPose().translation();
 
     mvKeys_rs.resize(mvKeys.size());
     for(int i=0;i<N;i++) // For each detected keypoint
     {
         auto kp = mvKeys[i].pt;
         auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
+        bool hasDepth = false;
+        if (mvpMapPoints[i]) {
+            hasDepth = true;
+            auto kp3Dc = Twc * mvpMapPoints[i]->GetWorldPos(); // mappoint in camera space
+            kp3D = kp3D.normalized() * kp3Dc.norm(); // mappoint in camera space with the same depth as the mappoint
+        }
 
         double t = (kp.y * rsRowTime) / (mTimeStamp - mpPrevFrame->mTimeStamp); // Time between the last frame and the current frame
 
         auto forwardRot = qLast.slerp(t, qCurr) * qLast.inverse(); // Assumes that the rotation is small enough to be approximated by a forward linear interpolation
 
-        auto kp3Drot = forwardRot.toRotationMatrix().inverse() * kp3D; // pi^-1(kp) rotated in world space.
-        
-        auto newKp = mpCamera->project(kp3Drot.eval()); // pi(kp3Drot) 
+        Eigen::Vector3f kp3Drect;
+        if (hasDepth) {
+            auto forwardTr = (tCurr - tLast) * t;
+            kp3Drect = forwardRot.toRotationMatrix().inverse() * (kp3D - forwardTr);
+        }
+        else
+            kp3Drect = forwardRot.toRotationMatrix().inverse() * kp3D; // pi^-1(kp) rotated in world space. 
+
+        auto newKp = mpCamera->project(kp3Drect.eval()); // pi(kp3Drot) 
 
         // cout << "Old kp: " << kp << " New kp: " << newKp << endl;
         mvKeys[i].pt = cv::Point2f(newKp(0,0), newKp(1,0)); // Replace the keypoint with the new one
     }
     
-    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt (except copies the keypoints)
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt (only copies)
     AssignFeaturesToGrid();
 }
 
