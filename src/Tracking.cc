@@ -583,6 +583,7 @@ void Tracking::newParameterLoader(Settings *settings) {
 
     mMinFrames = 0;
     mMaxFrames = settings->fps();
+    mRsRowTime = settings->rsRowTime();
     mbRGB = settings->rgb();
 
     //ORB parameters
@@ -1584,9 +1585,9 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
     if (mSensor == System::MONOCULAR)
     {
         if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET ||(lastID - initID) < mMaxFrames)
-            mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
+            mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,&mLastFrame);
         else
-            mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
+            mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,&mLastFrame);
     }
     else if(mSensor == System::IMU_MONOCULAR)
     {
@@ -2863,15 +2864,14 @@ bool Tracking::TrackWithMotionModel()
     {
         // Predict state with IMU if it is initialized and it doesnt need reset
         PredictStateIMU();
+        mCurrentFrame.RSCompensation(mRsRowTime);
         return true;
     }
-    else
-    {
-        mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
-    }
-
-
-
+    
+    mCurrentFrame.SetPose(mVelocity * mLastFrame.GetPose());
+    mCurrentFrame.RSCompensation(mRsRowTime);
+    
+    //cout << "TrackWithMotionModel: ProjectionAndPoseEstimation" << endl;
 
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
@@ -2884,7 +2884,7 @@ bool Tracking::TrackWithMotionModel()
         th=15;
 
     int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR);
-
+    
     // If few matches, uses a wider window search
     if(nmatches<20)
     {
@@ -2907,6 +2907,7 @@ bool Tracking::TrackWithMotionModel()
 
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);
+    mCurrentFrame.RSCompensation(mRsRowTime); // Redo RSComp with better pose!
 
     // Discard outliers
     int nmatchesMap = 0;

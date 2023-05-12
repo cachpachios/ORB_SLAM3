@@ -26,6 +26,7 @@
 #include "ORBmatcher.h"
 #include "GeometricCamera.h"
 
+#include <opencv2/core/types.hpp>
 #include <thread>
 #include <include/CameraModels/Pinhole.h>
 #include <include/CameraModels/KannalaBrandt8.h>
@@ -70,7 +71,7 @@ Frame::Frame(const Frame &frame)
      monoLeft(frame.monoLeft), monoRight(frame.monoRight), mvLeftToRightMatch(frame.mvLeftToRightMatch),
      mvRightToLeftMatch(frame.mvRightToLeftMatch), mvStereo3Dpoints(frame.mvStereo3Dpoints),
      mTlr(frame.mTlr), mRlr(frame.mRlr), mtlr(frame.mtlr), mTrl(frame.mTrl),
-     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false)
+     mTcw(frame.mTcw), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(frame.mbRSCompensated), mvKeys_rs(frame.mvKeys_rs)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++){
@@ -97,7 +98,7 @@ Frame::Frame(const Frame &frame)
 #endif
 }
 
-
+// Stero Constructor
 Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera, Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL), mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), mK_(Converter::toMatrix3f(K)), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
      mImuCalib(ImuCalib), mpImuPreintegrated(NULL), mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false),
@@ -197,6 +198,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
+// RGB-D Constructor
 Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera,Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()), mK_(Converter::toMatrix3f(K)),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
@@ -285,12 +287,12 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-
+// Monocular constructor
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
      mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
-     mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false)
+     mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false), mbRSCompensated(false)
 {
     // Frame ID
     mnId=nNextId++;
@@ -320,7 +322,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     if(mvKeys.empty())
         return;
 
-    UndistortKeyPoints();
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt
 
     // Set no stereo information
     mvuRight = vector<float>(N,-1);
@@ -364,13 +366,16 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     monoLeft = -1;
     monoRight = -1;
 
-    AssignFeaturesToGrid();
 
     if(pPrevF)
     {
         if(pPrevF->HasVelocity())
         {
+            //cout << "Frame: " << mnId << " has velocity" << endl;
             SetVelocity(pPrevF->GetVelocity());
+        }
+        else {
+            //cout << "Frame: " << mnId << " has no velocity" << endl;
         }
     }
     else
@@ -378,7 +383,64 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
         mVw.setZero();
     }
 
+    AssignFeaturesToGrid();
     mpMutexImu = new std::mutex();
+}
+
+
+void Frame::RSCompensation(double rsRowTime) // Only implemented for the monocular case 
+{
+    if (rsRowTime == 0)
+        return; // No need to do anything if there is no row time
+
+    if (!mpPrevFrame)
+        return; // Cant do anything if there is no previous frame
+
+    if (mbRSCompensated) {
+        mvKeys = mvKeys_rs; // If the frame has already been compensated, redo!
+    }
+
+    mbRSCompensated = true;
+    mvKeys_rs = mvKeys; // Copy the original keypoints
+
+    auto Twc = GetPose();
+    auto qCurr = Twc.so3().unit_quaternion();
+    auto qLast = mpPrevFrame->GetPose().so3().unit_quaternion();
+    auto tCurr = Twc.translation();
+    auto tLast = mpPrevFrame->GetPose().translation();
+
+    mvKeys_rs.resize(mvKeys.size());
+    for(int i=0;i<N;i++) // For each detected keypoint
+    {
+        auto kp = mvKeys[i].pt;
+        auto kp3D = mpCamera->unprojectEig(kp); // pi^-1(kp)
+        bool hasDepth = false;
+        if (mvpMapPoints[i]) {
+            hasDepth = true;
+            auto kp3Dc = Twc * mvpMapPoints[i]->GetWorldPos(); // mappoint in camera space
+            kp3D = kp3D.normalized() * kp3Dc.norm(); // mappoint in camera space with the same depth as the mappoint
+        }
+
+        double t = (kp.y * rsRowTime) / (mTimeStamp - mpPrevFrame->mTimeStamp); // Time between the last frame and the current frame
+
+        auto forwardRot = qLast.slerp(t, qCurr) * qLast.inverse(); // Assumes that the rotation is small enough to be approximated by a forward linear interpolation
+
+        Eigen::Vector3f kp3Drect;
+        if (hasDepth) {
+            auto forwardTr = (tCurr - tLast) * t;
+            kp3Drect = forwardRot.toRotationMatrix().inverse() * (kp3D - forwardTr);
+        }
+        else
+            kp3Drect = forwardRot.toRotationMatrix().inverse() * kp3D; // pi^-1(kp) rotated in world space. 
+
+        auto newKp = mpCamera->project(kp3Drect.eval()); // pi(kp3Drot) 
+
+        // cout << "Old kp: " << kp << " New kp: " << newKp << endl;
+        mvKeys[i].pt = cv::Point2f(newKp(0,0), newKp(1,0)); // Replace the keypoint with the new one
+    }
+    
+    UndistortKeyPoints(); // Doesnt do anything for Kannala Brandt (only copies)
+    AssignFeaturesToGrid();
 }
 
 
@@ -391,6 +453,7 @@ void Frame::AssignFeaturesToGrid()
 
     for(unsigned int i=0; i<FRAME_GRID_COLS;i++)
         for (unsigned int j=0; j<FRAME_GRID_ROWS;j++){
+            mGrid[i][j].clear(); // To allow rerunning this function after moving points due to RS compensation
             mGrid[i][j].reserve(nReserve);
             if(Nleft != -1){
                 mGridRight[i][j].reserve(nReserve);
@@ -749,7 +812,7 @@ void Frame::UndistortKeyPoints()
     if(mDistCoef.at<float>(0)==0.0)
     {
         mvKeysUn=mvKeys;
-        return;
+        return; // Returns directly...
     }
 
     // Fill matrix with points

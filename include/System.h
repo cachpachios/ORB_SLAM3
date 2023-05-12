@@ -140,6 +140,8 @@ public:
     void Shutdown();
     bool isShutDown();
 
+    void SaveOctaveLevels(const string &filename);
+
     // Save camera trajectory in the TUM RGB-D dataset format.
     // Only for stereo and RGB-D. This method does not work for monocular.
     // Call first Shutdown()
@@ -262,6 +264,9 @@ private:
     string mStrVocabularyFilePath;
 
     Settings* settings_;
+
+    // Octaves
+    std::vector<std::vector<int>> mvMapPointOctaves;
 };
 
 }// namespace ORB_SLAM
