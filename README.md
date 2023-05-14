@@ -1,3 +1,7 @@
+# RS-ORB-SLAM3
+This is an extension to ORB-SLAM3 allowing for compensation against rolling shutter effect using rectification.
+This was done as a master thesis project.
+
 # ORB-SLAM3
 
 ### V1.0, December 22th, 2021
